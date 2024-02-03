@@ -16,17 +16,22 @@ import {
     Select,
 } from '@chakra-ui/react';
 import useManageBookings from '../hooks/useManageBookings';
+import axios from "axios";
+import useFetchTimeSlots from '../hooks/useFetchTimeSlots';
 
 
 const Dashboard = () => {
     const { availableSlots } = useManageBookings();
     const [timeSlots, setTimeSlots] = useState([]);
     const [newPriceForAll, setNewPriceForAll] = useState('');
+    const [price,setPrice] = useState("");
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const toast = useToast();
+    const { timeSlotData} = useFetchTimeSlots();
 
+    
     // Function to fetch time slots from Firestore
     const fetchTimeSlots = async () => {
         try {
@@ -49,9 +54,9 @@ const Dashboard = () => {
         try {
             const bookingsCollection = collection(db, 'bookings');
             const snapshot = await getDocs(bookingsCollection);
-            console.log('Snapshot:', snapshot);
+            // console.log('Snapshot:', snapshot);
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            console.log('Data:', data);
+            // console.log('Data:', data);
             setBookings(data);
             localStorage.setItem('bookings', JSON.stringify(data));
         } catch (error) {
@@ -68,8 +73,33 @@ const Dashboard = () => {
     };
 
 
-    const handleCancelBooking = async (id) => {
+    async function holdForFiveSeconds() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 1000); // 5000 milliseconds = 5 seconds
+        });
+    }
+
+
+
+    const handleCancelBooking = async (id,timeslot,payment_id) => {
         try {
+            
+            const slot = timeSlotData.find(slot => slot.slot === timeslot);
+            const refund_receipt = await axios.post(`http://localhost:4000/api/refund/${payment_id}`,{
+                amount: slot.price,
+            });
+
+            if (!refund_receipt.status === 201){
+                toast({
+                    title: 'Error',
+                    description: 'Failed to process refund.',
+                    status: 'error',
+                    duration: 5000,
+                    isClosable: true,
+                });
+            }
             // Remove booking from Firestore
             await deleteDoc(doc(db, 'bookings', id));
 
@@ -85,9 +115,18 @@ const Dashboard = () => {
                 title: 'Success',
                 description: 'Booking canceled successfully.',
                 status: 'success',
-                duration: 5000,
+                duration: 2000,
                 isClosable: true,
             });
+            await holdForFiveSeconds();
+            toast({
+                title:"Success",
+                description:"Amount will be refund in 2-3 bussiness days.",
+                status:"success",
+                duration:3000,
+                isClosable: true,
+            })
+            
         } catch (error) {
             console.error('Error canceling booking:', error);
             toast({
@@ -409,7 +448,7 @@ const Dashboard = () => {
                                                             role={'button'}
                                                             customClass={'text-primary py-2 px-5 border-blue-900'}
                                                         />
-                                                        <Button variant={'outlinePrimary'} onClick={() => handleCancelBooking(booking.id)} label={
+                                                        <Button variant={'outlinePrimary'} onClick={() => handleCancelBooking(booking.id,booking.timeSlot,booking.payment_id)} label={
                                                             <>
                                                                 <span className='whitespace-nowrap text-red-700'><span className='me-1'>Cancel Booking</span> <i className="fas fa-trash text-red-700"></i></span>
                                                             </>

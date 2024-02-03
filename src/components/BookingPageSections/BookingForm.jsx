@@ -13,12 +13,14 @@ import { sendEmail } from "../Utils/Data";
 import axios from "axios";
 
 const BookingsForm = () => {
+  let payment_id;
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [showAlert, setShowAlert] = useState(false);
-  const { availableSlots, handleDateChange, selectedDate, timeSlotWithPrice } =
-    useManageBookings();
+  const [isLoading,setIsLoading] = useState(false);
+  const { availableSlots, handleDateChange, selectedDate, timeSlotWithPrice } =useManageBookings();
   const [timeSlot, setTimeSlot] = useState("");
+  // const [payment_id,setPayment_id] = useState("");
 
   //newly created price use state for dynamic price calculation according to slot
   const [prices, setPrices] = useState("");
@@ -27,14 +29,6 @@ const BookingsForm = () => {
   const toast = useToast();
   const urlParams = new URLSearchParams(window.location.search);
   const paymentSuccess = urlParams.get("PaymentSuccess");
-
-  useEffect(() => {
-    if (paymentSuccess === "true") {
-      handlePaymentSuccess();
-    } else if (paymentSuccess === "false") {
-      handlePaymentFailure();
-    }
-  }, [paymentSuccess]);
 
   const handlePaymentSuccess = () => {
     toast({
@@ -45,7 +39,7 @@ const BookingsForm = () => {
       position: "top",
       isClosable: true,
     });
-    handleBookingAndEmail();
+    handleBookingAndEmail(payment_id);
     setShowMessage(true);
     setName("");
     setContact("");
@@ -77,17 +71,25 @@ const BookingsForm = () => {
       setShowAlert(true);
       return;
     }
-
+    setIsLoading(true);
     try {
+      const toastId = toast({
+        title:'Loading...',
+        description:"Please wait while we process your payment.",
+        duration: null,
+        isClosable: true,
+      })
       const {
         data: { key },
       } = await axios.get("https://fcarena-final.vercel.app/api/getkey");
 
       const {
         data: { order },
-      } = await axios.post("https://fcarena-final.vercel.app/api/checkout", {
+      } = await axios.post("http://localhost:4000/api/checkout", {
         amount: prices,
       });
+
+      //https://fcarena-final.vercel.app/api/checkout
 
       const options = {
         key,
@@ -99,8 +101,8 @@ const BookingsForm = () => {
         order_id: order.id,
         handler: async function (response) {
           const {
-            data: { success },
-          } = await axios.post("https://fcarena-final.vercel.app/api/paymentverification",
+            data: { success,id },
+          } = await axios.post("http://localhost:4000/api/paymentverification",
             {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
@@ -108,10 +110,12 @@ const BookingsForm = () => {
             }
           );
           if (success) {
-            handlePaymentSuccess();
+            payment_id = id;
+            handlePaymentSuccess()
           } else {
             handlePaymentFailure();
           }
+          
         },
         prefill: {
           name: name,
@@ -127,6 +131,8 @@ const BookingsForm = () => {
       };
       const razor = new window.Razorpay(options);
       razor.open();
+      setIsLoading(false)
+          toast.close(toastId);
     } catch (error) {
       console.log(error);
     }
@@ -138,7 +144,10 @@ const BookingsForm = () => {
       contact,
       date: selectedDate,
       timeSlot,
+      payment_id
     });
+
+    payment_id=null;
 
     await sendEmail({
       name,
