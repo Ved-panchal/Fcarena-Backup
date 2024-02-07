@@ -5,7 +5,8 @@ import crypto from 'crypto'
 var count=1;
 
 export const checkout = async (req, res) => {
-    const options = {
+    try{
+        const options = {
         amount: Number(req.body.amount * 100),
         currency: 'INR',
     }
@@ -16,6 +17,13 @@ export const checkout = async (req, res) => {
         success: true,
         order,
     })
+    } catch(error){
+        res.status(500).json({
+            success:false,
+            message:error.message,
+        })
+    }
+    
 }
 
 export const paymentVerification = async (req, res) => {
