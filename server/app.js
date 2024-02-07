@@ -6,7 +6,7 @@ config({ path: "./config/config.env" });
 
 export const app = express();
 
-app.use(cors({origin: "https://fcarenavadodara.in" }));
+app.use(cors({origin: "https://fcarenavadodara.in",credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
