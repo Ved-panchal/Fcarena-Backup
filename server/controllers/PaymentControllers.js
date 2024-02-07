@@ -1,9 +1,6 @@
 import { instance } from '../server.js'
 import crypto from 'crypto'
 
-
-var count=1;
-
 export const checkout = async (req, res) => {
     try{
         const options = {
@@ -12,6 +9,7 @@ export const checkout = async (req, res) => {
     }
     const order = await instance.orders.create(options)
 
+    res.setHeader('Content-Type', 'application/json');
 
     res.status(200).json({
         success: true,
