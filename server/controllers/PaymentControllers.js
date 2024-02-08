@@ -8,9 +8,7 @@ export const checkout = async (req, res) => {
         currency: 'INR',
     }
     const order = await instance.orders.create(options)
-
-    res.setHeader('Content-Type', 'application/json');
-
+        
     res.status(200).json({
         success: true,
         order,
